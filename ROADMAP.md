@@ -52,6 +52,16 @@ NeuroSim is an interactive computational neuroscience and BCI learning platform 
 * Visualize EEG decoding outputs
 * Compare simulated neural activity with real EEG-based BCI concepts
 
+## v0.6 — Closed-Loop BCI Demo
+
+**Goal:** Add an interactive brain-computer interface demonstration.
+
+- Load preprocessed EEG motor imagery trials
+- Decode imagined movement using a trained classifier
+- Visualize prediction confidence
+- Move a virtual cursor based on decoded intent
+- Connect neural decoding outputs to an interactive control loop
+
 ## v1.0 — Public Release
 
 **Goal:** Release NeuroSim as a polished open-source educational neuroscience tool.
