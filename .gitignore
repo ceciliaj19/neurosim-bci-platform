@@ -222,3 +222,6 @@ data/**/*.npz
 data/**/*.edf
 data/**/*.mat
 data/**/*.csv
+
+models/*.pth
+results/*.png

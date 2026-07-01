@@ -22,5 +22,8 @@ dependencies = [
     "plotly"
 ]
 
+[project.optional-dependencies]
+training = ["torch>=2.0"]
+
 [tool.setuptools.packages.find]
 include = ["neurosim*"]
