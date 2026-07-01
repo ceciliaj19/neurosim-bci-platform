@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Large datasets
+data/**/*.npz
+data/**/*.edf
+data/**/*.mat
+data/**/*.csv
