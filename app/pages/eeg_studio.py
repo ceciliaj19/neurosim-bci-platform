@@ -8,9 +8,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from scipy.signal import welch
+from scipy.signal import spectrogram, welch
 
 from components.eeg_chart import render_eeg_chart
 from components.page_header import render_page_header
@@ -19,6 +20,24 @@ from neurosim.datasets import DatasetLoader
 _LABEL_NAMES = {0: "Left-hand imagery", 1: "Right-hand imagery"}
 _LABEL_COLORS = {0: "rgba(25,103,210,0.12)", 1: "rgba(197,34,31,0.12)"}
 _LABEL_TEXT_COLORS = {0: "#1967d2", 1: "#c5221f"}
+
+# Sampling frequency: PhysioNet EEGMMI dataset is recorded at 160 Hz
+_FS = 160.0
+_MAX_HZ = 40.0
+
+# Canonical EEG frequency bands: (display_label, f_low, f_high, fill_color, bar_color, description)
+_BANDS = [
+    ("Delta",  0.5,  4.0,  "rgba(99,102,241,0.08)",  "#6366f1",
+     "Deep sleep, high-amplitude slow waves; typically suppressed during active cognition."),
+    ("Theta",  4.0,  8.0,  "rgba(16,185,129,0.08)",  "#10b981",
+     "Drowsiness, memory encoding, and navigation; elevated during focused internal tasks."),
+    ("Alpha",  8.0,  13.0, "rgba(245,158,11,0.10)",  "#f59e0b",
+     "Relaxed wakefulness and cortical idling. Suppressed over motor cortex during motor imagery (ERD)."),
+    ("Beta",   13.0, 30.0, "rgba(239,68,68,0.08)",   "#ef4444",
+     "Active concentration, motor planning, and sensorimotor processing. Key band for BCI decoding."),
+    ("Gamma",  30.0, 40.0, "rgba(168,85,247,0.08)",  "#a855f7",
+     "High-level sensory binding and attention. Relevant range here limited to 30–40 Hz."),
+]
 
 
 @st.cache_data
@@ -99,10 +118,6 @@ def render() -> None:
         "The PSD is estimated using Welch's method (overlapping Hann-windowed segments)."
     )
 
-    # Sampling frequency: PhysioNet EEGMMI dataset is recorded at 160 Hz
-    _FS = 160.0
-    _MAX_HZ = 40.0
-
     n_channels = trial.shape[0]
     psd_channel = st.selectbox(
         "Channel for PSD",
@@ -124,24 +139,16 @@ def render() -> None:
     freqs_plot = freqs[mask]
     power_plot = power[mask]
 
-    # Frequency band definitions: (label, f_low, f_high, color)
-    _BANDS = [
-        ("Delta\n0.5–4 Hz",  0.5,  4.0,  "rgba(99,102,241,0.08)"),
-        ("Theta\n4–8 Hz",    4.0,  8.0,  "rgba(16,185,129,0.08)"),
-        ("Alpha\n8–13 Hz",   8.0,  13.0, "rgba(245,158,11,0.10)"),
-        ("Beta\n13–30 Hz",   13.0, 30.0, "rgba(239,68,68,0.08)"),
-    ]
-
     psd_fig = go.Figure()
 
     # Band shading (drawn first so trace appears on top)
-    for band_label, f_lo, f_hi, band_color in _BANDS:
+    for name, f_lo, f_hi, fill_color, _, _desc in _BANDS:
         psd_fig.add_vrect(
             x0=f_lo, x1=f_hi,
-            fillcolor=band_color,
+            fillcolor=fill_color,
             layer="below",
             line_width=0,
-            annotation_text=band_label,
+            annotation_text=f"{name}\n{f_lo}–{f_hi} Hz",
             annotation_position="top left",
             annotation_font_size=9,
             annotation_font_color="rgba(0,0,0,0.35)",
@@ -170,6 +177,126 @@ def render() -> None:
         margin=dict(l=60, r=40, t=50, b=50),
     )
     st.plotly_chart(psd_fig, use_container_width=True)
+
+    # ── Spectrogram ──────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("#### Spectrogram")
+    st.markdown(
+        "A **spectrogram** shows how the frequency content of a signal changes "
+        "over time. Unlike the PSD (which averages across the whole trial), the "
+        "spectrogram reveals *when* specific frequencies are active. "
+        "In motor imagery EEG, the spectrogram can show transient suppression of "
+        "alpha and beta power — Event-Related Desynchronisation (ERD) — during "
+        "the imagery period. Power is shown on a logarithmic (dB) scale to reveal "
+        "structure across a wide dynamic range."
+    )
+
+    spec_channel = st.selectbox(
+        "Channel for spectrogram",
+        options=list(range(n_channels)),
+        format_func=lambda i: f"Channel {i}",
+        index=0,
+        key="spec_channel",
+    )
+
+    spec_signal = trial[spec_channel]
+    f, t, Sxx = spectrogram(
+        spec_signal,
+        fs=_FS,
+        nperseg=64,
+        noverlap=48,
+    )
+
+    # Restrict to 0–40 Hz and convert to dB
+    freq_mask = f <= _MAX_HZ
+    f_plot = f[freq_mask]
+    Sxx_db = 10.0 * np.log10(Sxx[freq_mask, :] + 1e-10)
+
+    spec_fig = go.Figure(go.Heatmap(
+        x=t,
+        y=f_plot,
+        z=Sxx_db,
+        colorscale="Viridis",
+        colorbar=dict(title="dB", thickness=14, len=0.85),
+        hovertemplate="Time: %{x:.2f} s<br>Freq: %{y:.1f} Hz<br>Power: %{z:.1f} dB<extra></extra>",
+    ))
+
+    spec_fig.update_layout(
+        title=f"Spectrogram — Trial {trial_idx}, Channel {spec_channel} "
+              f"({label_name})",
+        xaxis_title="Time (s)",
+        yaxis_title="Frequency (Hz)",
+        yaxis=dict(range=[0, _MAX_HZ]),
+        height=380,
+        plot_bgcolor="#f9f9f9",
+        margin=dict(l=60, r=50, t=50, b=50),
+    )
+    st.plotly_chart(spec_fig, use_container_width=True)
+
+    # ── Frequency Band Power ─────────────────────────────────────────────────
+    st.divider()
+    st.markdown("#### Frequency Band Power")
+    st.markdown(
+        "Band power summarises the PSD into five physiologically meaningful "
+        "ranges. Power in each band is computed by integrating the PSD "
+        "(trapezoidal rule) over the band's frequency limits. "
+        "For motor imagery BCI, the **alpha** and **beta** bands are the most "
+        "discriminative: left-hand imagery suppresses alpha/beta power over "
+        "the right motor cortex, and vice versa."
+    )
+
+    bp_channel = st.selectbox(
+        "Channel for band power",
+        options=list(range(n_channels)),
+        format_func=lambda i: f"Channel {i}",
+        index=0,
+        key="bp_channel",
+    )
+
+    bp_signal = trial[bp_channel]
+    bp_freqs, bp_power = welch(bp_signal, fs=_FS, nperseg=min(256, len(bp_signal)))
+
+    band_names: list[str] = []
+    band_powers: list[float] = []
+    band_ranges: list[str] = []
+    band_bar_colors: list[str] = []
+    band_descriptions: list[str] = []
+
+    for name, f_lo, f_hi, _fill, bar_color, desc in _BANDS:
+        mask = (bp_freqs >= f_lo) & (bp_freqs <= f_hi)
+        power_val = float(np.trapezoid(bp_power[mask], bp_freqs[mask])) if mask.sum() > 1 else 0.0
+        band_names.append(name)
+        band_powers.append(power_val)
+        band_ranges.append(f"{f_lo}–{f_hi} Hz")
+        band_bar_colors.append(bar_color)
+        band_descriptions.append(desc)
+
+    bp_fig = go.Figure(go.Bar(
+        x=band_names,
+        y=band_powers,
+        marker_color=band_bar_colors,
+        text=[f"{p:.2e}" for p in band_powers],
+        textposition="outside",
+        hovertemplate="%{x}<br>Power: %{y:.4e} μV²<extra></extra>",
+    ))
+    bp_fig.update_layout(
+        title=f"Band Power — Trial {trial_idx}, Channel {bp_channel} ({label_name})",
+        xaxis_title="Frequency Band",
+        yaxis_title="Power (μV²)",
+        height=360,
+        plot_bgcolor="#f9f9f9",
+        showlegend=False,
+        margin=dict(l=60, r=40, t=50, b=50),
+    )
+    st.plotly_chart(bp_fig, use_container_width=True)
+
+    bp_df = pd.DataFrame({
+        "Band": band_names,
+        "Freq. Range": band_ranges,
+        "Power (μV²)": [f"{p:.4e}" for p in band_powers],
+        "Description": band_descriptions,
+    })
+    st.dataframe(bp_df, use_container_width=True, hide_index=True)
 
 
 render()
