@@ -14,6 +14,10 @@ results/training_history.json
     Per-epoch training and validation loss / accuracy.
 results/training_curve.png
     Loss and accuracy curves over epochs.
+results/confusion_matrix.json
+    Raw confusion matrix as ``{"labels": [0, 1], "matrix": [[...], [...]]}``.
+results/confusion_matrix.png
+    Annotated confusion matrix heatmap figure.
 """
 
 from __future__ import annotations
@@ -53,10 +57,12 @@ from neurosim.networks import EEGNet
 # Project-relative output paths
 # ---------------------------------------------------------------------------
 _ROOT = Path(__file__).resolve().parent.parent
-_MODEL_PATH = _ROOT / "models" / "eegnet_motor_imagery_v1.pth"
+_MODEL_PATH  = _ROOT / "models"   / "eegnet_motor_imagery_v1.pth"
 _METRICS_PATH = _ROOT / "results" / "metrics.json"
 _HISTORY_PATH = _ROOT / "results" / "training_history.json"
-_CURVE_PATH = _ROOT / "results" / "training_curve.png"
+_CURVE_PATH   = _ROOT / "results" / "training_curve.png"
+_CM_JSON_PATH = _ROOT / "results" / "confusion_matrix.json"
+_CM_PNG_PATH  = _ROOT / "results" / "confusion_matrix.png"
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +263,7 @@ def compute_test_metrics(
     loader: DataLoader,
     device: torch.device,
     n_classes: int = 2,
-) -> dict[str, float]:
+) -> tuple[dict[str, float], np.ndarray, np.ndarray]:
     """Compute accuracy, per-class precision, recall, and macro F1.
 
     Parameters
@@ -270,8 +276,12 @@ def compute_test_metrics(
 
     Returns
     -------
-    dict[str, float]
+    metrics : dict[str, float]
         Keys: ``accuracy``, ``precision_macro``, ``recall_macro``, ``f1_macro``.
+    all_preds : np.ndarray
+        Predicted class indices for every test sample, shape ``(n_test,)``.
+    all_labels : np.ndarray
+        Ground-truth class indices for every test sample, shape ``(n_test,)``.
     """
     model.eval()
     all_preds: list[int] = []
@@ -304,12 +314,13 @@ def compute_test_metrics(
         recalls.append(recall)
         f1s.append(f1)
 
-    return {
+    metrics = {
         "accuracy": accuracy,
         "precision_macro": float(np.mean(precisions)),
         "recall_macro": float(np.mean(recalls)),
         "f1_macro": float(np.mean(f1s)),
     }
+    return metrics, preds_arr, labels_arr
 
 
 # ---------------------------------------------------------------------------
@@ -403,7 +414,9 @@ def train(
     best_model.load_state_dict(
         torch.load(_MODEL_PATH, map_location=device, weights_only=True)
     )
-    metrics = compute_test_metrics(best_model, val_loader, device, n_classes)
+    metrics, all_preds, all_labels = compute_test_metrics(
+        best_model, val_loader, device, n_classes
+    )
     metrics["best_val_acc"] = best_val_acc
     metrics["n_epochs"] = n_epochs
     metrics["batch_size"] = batch_size
@@ -418,13 +431,18 @@ def train(
     results_dir.mkdir(parents=True, exist_ok=True)
 
     _METRICS_PATH.write_text(json.dumps(metrics, indent=2))
-    print(f"\nMetrics saved → {_METRICS_PATH}")
+    print(f"\nMetrics saved        → {_METRICS_PATH}")
 
     _HISTORY_PATH.write_text(json.dumps(history, indent=2))
-    print(f"History saved → {_HISTORY_PATH}")
+    print(f"History saved        → {_HISTORY_PATH}")
 
     _save_training_curve(history)
-    print(f"Curve saved  → {_CURVE_PATH}")
+    print(f"Curve saved          → {_CURVE_PATH}")
+
+    class_labels = list(range(n_classes))
+    _save_confusion_matrix(all_labels, all_preds, class_labels)
+    print(f"Confusion matrix     → {_CM_JSON_PATH}")
+    print(f"Confusion matrix png → {_CM_PNG_PATH}")
 
 
 # ---------------------------------------------------------------------------
@@ -467,6 +485,76 @@ def _save_training_curve(history: dict[str, list[float]]) -> None:
     fig.suptitle("EEGNet — Motor Imagery Training", fontsize=13, y=1.02)
     fig.tight_layout()
     fig.savefig(_CURVE_PATH, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_confusion_matrix(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    labels: list[int],
+) -> None:
+    """Compute, save, and plot the confusion matrix for the test set.
+
+    Saves two artefacts:
+
+    * ``results/confusion_matrix.json`` — raw matrix as a nested list with a
+      ``labels`` key so the axis orientation is unambiguous.
+    * ``results/confusion_matrix.png`` — annotated heatmap figure.
+
+    Parameters
+    ----------
+    y_true : np.ndarray
+        Ground-truth class indices, shape ``(n_test,)``.
+    y_pred : np.ndarray
+        Predicted class indices, shape ``(n_test,)``.
+    labels : list[int]
+        Ordered class labels (e.g. ``[0, 1]``).  Pins the matrix row/column
+        order even if a class is absent from the test set.
+    """
+    try:
+        from sklearn.metrics import confusion_matrix
+    except ImportError as exc:
+        raise SystemExit(
+            "scikit-learn is required to save the confusion matrix.\n"
+            "Install it with:  pip install scikit-learn"
+        ) from exc
+
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
+
+    # -- JSON ----------------------------------------------------------------
+    cm_payload = {
+        "labels": labels,
+        "matrix": cm.tolist(),
+    }
+    _CM_JSON_PATH.write_text(json.dumps(cm_payload, indent=2))
+
+    # -- PNG -----------------------------------------------------------------
+    n = len(labels)
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    im = ax.imshow(cm, interpolation="nearest", cmap="Blues")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Count")
+
+    tick_labels = [f"Class {lbl}" for lbl in labels]
+    ax.set_xticks(range(n))
+    ax.set_xticklabels(tick_labels, rotation=30, ha="right")
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(tick_labels)
+    ax.set_xlabel("Predicted class")
+    ax.set_ylabel("True class")
+    ax.set_title("Confusion Matrix — EEGNet Test Set")
+
+    # Annotate each cell with its count; use white text on dark cells
+    thresh = cm.max() / 2.0
+    for row in range(n):
+        for col in range(n):
+            color = "white" if cm[row, col] > thresh else "black"
+            ax.text(col, row, str(cm[row, col]),
+                    ha="center", va="center",
+                    fontsize=14, fontweight="bold", color=color)
+
+    fig.tight_layout()
+    fig.savefig(_CM_PNG_PATH, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
