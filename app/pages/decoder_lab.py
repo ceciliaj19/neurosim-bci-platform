@@ -24,8 +24,9 @@ from neurosim.datasets import DatasetLoader
 # ---------------------------------------------------------------------------
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
-_MODEL_PATH = _ROOT / "models" / "eegnet_motor_imagery_v1.pth"
+_MODEL_PATH = _ROOT / "models"   / "eegnet_motor_imagery_v1.pth"
 _METRICS_PATH = _ROOT / "results" / "metrics.json"
+_CM_PATH      = _ROOT / "results" / "confusion_matrix.json"
 
 _N_CLASSES = 2
 _N_CHANNELS = 64
@@ -53,6 +54,22 @@ def _load_metrics() -> dict | None:
     try:
         return json.loads(_METRICS_PATH.read_text())
     except json.JSONDecodeError:
+        return None
+
+
+@st.cache_data
+def _load_confusion_matrix() -> list[list[int]] | None:
+    """Load the raw confusion matrix from results/confusion_matrix.json.
+
+    Returns the ``matrix`` field (a nested list) if the file exists and is
+    valid, otherwise ``None``.
+    """
+    if not _CM_PATH.is_file():
+        return None
+    try:
+        payload = json.loads(_CM_PATH.read_text())
+        return payload.get("matrix")
+    except (json.JSONDecodeError, AttributeError):
         return None
 
 
@@ -261,15 +278,12 @@ def render() -> None:
         "mistakenly decoded as right, and the bottom-left counts the reverse."
     )
 
-    cm_data = metrics.get("confusion_matrix") if metrics else None
+    cm_data = _load_confusion_matrix()
 
     if cm_data is None:
         st.info(
-            "Confusion matrix data is not yet available in "
-            f"`{_METRICS_PATH.relative_to(_ROOT)}`.  \n"
-            "It will appear here once evaluation artifacts include a "
-            "`confusion_matrix` field. Re-run the training script to generate "
-            "an updated metrics file:  \n"
+            f"Confusion matrix not found at `{_CM_PATH.relative_to(_ROOT)}`.  \n"
+            "Generate it by running:  \n"
             "```\npython scripts/train_eegnet.py\n```",
             icon="🔲",
         )
