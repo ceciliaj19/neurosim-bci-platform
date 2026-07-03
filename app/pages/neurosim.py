@@ -12,7 +12,7 @@ import streamlit as st
 
 from components.exporter import download_buttons
 from components.page_header import render_page_header
-from components.ui import COLORS, PLOTLY_LAYOUT, section_header
+from components.ui import COLORS, PLOTLY_LAYOUT, get_plotly_layout, section_header
 from neurosim.analysis import compare_neuron_models, compute_fi_curve, parameter_sweep
 from neurosim.neurons import (
     IzhikevichNeuron,
@@ -58,7 +58,10 @@ def render() -> None:
 
         st.divider()
         st.markdown("**Simulation Settings**")
-        t_max = st.slider("Simulation Time (ms)", 100.0, 1000.0, 500.0, 50.0)
+        t_max = st.slider(
+            "Simulation Time (ms)", 100.0, 1000.0,
+            float(st.session_state.get("cfg_sim_duration", 500.0)), 50.0,
+        )
         dt = st.selectbox("Time Step (ms)", [0.05, 0.1, 0.2, 0.5], index=1)
 
         st.divider()
@@ -113,7 +116,7 @@ def render() -> None:
             ))
 
         fig.update_layout(
-            **PLOTLY_LAYOUT,
+            **get_plotly_layout(),
             title="Membrane Potential Over Time",
             xaxis_title="Time (ms)",
             yaxis_title="Voltage (mV)",

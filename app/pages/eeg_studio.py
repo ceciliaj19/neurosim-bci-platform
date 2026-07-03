@@ -16,7 +16,7 @@ from scipy.signal import spectrogram, welch
 from components.eeg_chart import render_eeg_chart
 from components.exporter import download_buttons
 from components.page_header import render_page_header
-from components.ui import PLOTLY_LAYOUT, section_header
+from components.ui import PLOTLY_LAYOUT, get_plotly_layout, section_header
 from neurosim.datasets import DatasetLoader
 
 _LABEL_NAMES = {0: "Left-hand imagery", 1: "Right-hand imagery"}
@@ -63,18 +63,26 @@ def render() -> None:
 
         st.divider()
         st.markdown("**Trial Selection**")
+        _default_trial = min(
+            int(st.session_state.get("cfg_eeg_trial", 0)),
+            X.shape[0] - 1,
+        )
+        _default_channels = min(
+            int(st.session_state.get("cfg_eeg_channels", 5)),
+            min(20, X.shape[1]),
+        )
         trial_idx = st.slider(
             "Trial index",
             min_value=0,
             max_value=X.shape[0] - 1,
-            value=0,
+            value=_default_trial,
             step=1,
         )
         num_channels = st.slider(
             "Channels to display",
             min_value=1,
             max_value=min(20, X.shape[1]),
-            value=5,
+            value=_default_channels,
             step=1,
         )
 
@@ -167,7 +175,7 @@ def render() -> None:
     ))
 
     psd_fig.update_layout(
-        **PLOTLY_LAYOUT,
+        **get_plotly_layout(),
         title=f"PSD — Trial {trial_idx}, Channel {psd_channel} "
               f"({label_name})",
         xaxis_title="Frequency (Hz)",

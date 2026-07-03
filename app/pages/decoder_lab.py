@@ -131,8 +131,16 @@ def render() -> None:
 
         st.divider()
         st.markdown("**Trial Selection**")
-        trial_idx = st.slider("Trial index", 0, X.shape[0] - 1, 0)
-        num_channels = st.slider("Channels to display", 1, 10, 5)
+        _default_trial = min(
+            int(st.session_state.get("cfg_eeg_trial", 0)),
+            X.shape[0] - 1,
+        )
+        _default_channels = min(
+            int(st.session_state.get("cfg_eeg_channels", 5)),
+            10,
+        )
+        trial_idx = st.slider("Trial index", 0, X.shape[0] - 1, _default_trial)
+        num_channels = st.slider("Channels to display", 1, 10, _default_channels)
 
         st.divider()
         st.markdown("**Cursor**")

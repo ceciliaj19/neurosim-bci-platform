@@ -48,6 +48,24 @@ PLOTLY_LAYOUT: dict = {
 # Section header
 # ---------------------------------------------------------------------------
 
+_PLOTLY_LAYOUT_DARK: dict = {
+    "plot_bgcolor": "#1e1e2e",
+    "paper_bgcolor": "rgba(0,0,0,0)",
+    "font": {"family": _FONT_FAMILY, "size": 12, "color": "#e0e0e0"},
+    "margin": {"l": 56, "r": 32, "t": 48, "b": 48},
+}
+
+
+def get_plotly_layout() -> dict:
+    """Return the active Plotly layout dict based on the current plot-theme setting.
+
+    Pages that want theme support should use ``**get_plotly_layout()`` instead of
+    ``**PLOTLY_LAYOUT``.  Pages that don't care can continue using PLOTLY_LAYOUT.
+    """
+    theme = st.session_state.get("cfg_plot_theme", "Default")
+    return _PLOTLY_LAYOUT_DARK if theme == "Dark" else PLOTLY_LAYOUT
+
+
 def section_header(title: str, icon: str = "") -> None:
     """Render a consistent section heading inside any NeuroLab page.
 
