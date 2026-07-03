@@ -16,6 +16,7 @@ from components.cursor_chart import render_cursor_chart
 from components.eeg_chart import render_eeg_chart
 from components.model_metrics import render_model_metrics
 from components.page_header import render_page_header
+from components.ui import COLORS, PLOTLY_LAYOUT, section_header
 from neurosim.bci import CursorController
 from neurosim.datasets import DatasetLoader
 
@@ -145,7 +146,7 @@ def render() -> None:
     true_label = int(y[trial_idx])
 
     # -- Inference panel -----------------------------------------------------
-    st.markdown("#### Neural Decoding")
+    section_header("Neural Decoding")
 
     if model_error:
         st.warning(model_error)
@@ -198,16 +199,15 @@ def render() -> None:
                     x=[f"Class {i} ({_CLASS_TO_COMMAND[i]})"
                        for i in range(len(probs_list))],
                     y=[p * 100 for p in probs_list],
-                    marker_color=["#1f77b4", "#ff7f0e"],
+                    marker_color=[COLORS["left_class"], COLORS["right_class"]],
                     text=[f"{p * 100:.1f}%" for p in probs_list],
                     textposition="outside",
                 ))
                 prob_fig.update_layout(
+                    **PLOTLY_LAYOUT,
                     yaxis=dict(title="Probability (%)", range=[0, 115]),
                     xaxis_title=None,
                     height=220,
-                    margin=dict(l=10, r=10, t=10, b=36),
-                    plot_bgcolor="#f9f9f9",
                     showlegend=False,
                 )
                 st.plotly_chart(prob_fig, use_container_width=True)
@@ -231,12 +231,12 @@ def render() -> None:
 
     # -- EEG signal ----------------------------------------------------------
     st.divider()
-    st.markdown("#### Raw EEG Signal")
+    section_header("Raw EEG Signal")
     render_eeg_chart(trial, num_channels, trial_idx, true_label)
 
     # -- Model performance ---------------------------------------------------
     st.divider()
-    st.markdown("#### Model Performance")
+    section_header("Model Performance")
 
     if metrics is None:
         st.info(
@@ -267,7 +267,7 @@ def render() -> None:
 
     # -- Confusion matrix ----------------------------------------------------
     st.divider()
-    st.markdown("#### Confusion Matrix")
+    section_header("Confusion Matrix")
     st.markdown(
         "A **confusion matrix** shows how often the model's predictions match "
         "the true class labels across the test set. Each row represents the "
@@ -310,11 +310,11 @@ def render() -> None:
             ),
         ))
         cm_fig.update_layout(
+            **PLOTLY_LAYOUT,
             title="Confusion Matrix — EEGNet on Motor Imagery Test Set",
             xaxis_title="Predicted Class",
             yaxis_title="True Class",
             height=380,
-            margin=dict(l=60, r=40, t=50, b=60),
         )
         st.plotly_chart(cm_fig, use_container_width=True)
 

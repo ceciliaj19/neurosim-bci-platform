@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from components.page_header import render_page_header
+from components.ui import COLORS, PLOTLY_LAYOUT, section_header
 from neurosim.analysis import compare_neuron_models, compute_fi_curve, parameter_sweep
 from neurosim.neurons import (
     IzhikevichNeuron,
@@ -83,7 +84,7 @@ def render() -> None:
             y=result.voltage,
             mode="lines",
             name="Membrane Potential",
-            line=dict(color="#1f77b4", width=1.5),
+            line=dict(color=COLORS["left_class"], width=1.5),
         ))
 
         fig.add_hline(
@@ -110,30 +111,29 @@ def render() -> None:
             ))
 
         fig.update_layout(
+            **PLOTLY_LAYOUT,
             title="Membrane Potential Over Time",
             xaxis_title="Time (ms)",
             yaxis_title="Voltage (mV)",
             height=480,
             hovermode="x unified",
-            plot_bgcolor="#f9f9f9",
             legend=dict(
                 x=1, y=1, xanchor="right", yanchor="top",
                 bgcolor="rgba(255,255,255,0.75)",
                 bordercolor="lightgrey", borderwidth=1,
             ),
-            margin=dict(l=60, r=40, t=50, b=50),
         )
 
         fig.update_yaxes(range=[neuron.v_rest - 10, neuron.spike_voltage + 10])
         st.plotly_chart(fig, use_container_width=True)
 
     with stats_col:
-        st.markdown("#### Output")
+        section_header("Output")
         st.metric("Spike Count", result.spike_count)
         st.metric("Firing Rate", f"{result.firing_rate:.2f} Hz")
 
         st.divider()
-        st.markdown("#### Interpretation")
+        section_header("Interpretation")
         if result.spike_count == 0:
             st.info(
                 "Current is too low to reach threshold — no spikes generated.",
@@ -152,7 +152,7 @@ def render() -> None:
             )
 
     st.divider()
-    st.markdown("#### F-I Curve Experiment")
+    section_header("F-I Curve Experiment")
     st.markdown(
         "Sweep input current from **I_min** to **I_max** and measure the "
         "steady-state firing rate. Parameters match the neuron configured above."
@@ -191,13 +191,12 @@ def render() -> None:
         )
 
         fi_fig.update_layout(
+            **PLOTLY_LAYOUT,
             title="F-I Curve — Firing Rate vs. Input Current",
             xaxis_title="Input Current",
             yaxis_title="Firing Rate (Hz)",
             height=380,
             hovermode="x unified",
-            plot_bgcolor="#f9f9f9",
-            margin=dict(l=60, r=40, t=50, b=50),
         )
         st.plotly_chart(fi_fig, use_container_width=True)
 
@@ -209,7 +208,7 @@ def render() -> None:
             )
 
     st.divider()
-    st.markdown("#### Parameter Sweep Experiment")
+    section_header("Parameter Sweep Experiment")
     st.markdown(
         "A parameter sweep holds all neuron settings fixed except one, then "
         "runs a separate simulation for each value in a chosen range. "
@@ -289,13 +288,12 @@ def render() -> None:
             )
 
         ps_fig.update_layout(
+            **PLOTLY_LAYOUT,
             title=f"Firing Rate vs. {ps_label}",
             xaxis_title=ps_label,
             yaxis_title="Firing Rate (Hz)",
             height=360,
             hovermode="x unified",
-            plot_bgcolor="#f9f9f9",
-            margin=dict(l=60, r=40, t=50, b=50),
         )
         st.plotly_chart(ps_fig, use_container_width=True)
 
@@ -310,7 +308,7 @@ def render() -> None:
             )
 
     st.divider()
-    st.markdown("#### Neuron Model Comparison")
+    section_header("Neuron Model Comparison")
     st.markdown(
         "Run **LIF** and **Izhikevich** side-by-side under identical conditions "
         "to see how model choice affects spiking dynamics."
@@ -365,7 +363,7 @@ def render() -> None:
         cmp_results = cmp_state["results"]
         cmp_summary = cmp_state["summary"]
 
-        _TRACE_COLORS = {"LIF": "#1f77b4", "Izhikevich (RS)": "#ff7f0e"}
+        _TRACE_COLORS = {"LIF": COLORS["left_class"], "Izhikevich (RS)": COLORS["warning"]}
 
         cmp_fig = go.Figure()
         for model_name, sim_result in cmp_results.items():
@@ -378,19 +376,18 @@ def render() -> None:
             ))
 
         cmp_fig.update_layout(
+            **PLOTLY_LAYOUT,
             title=f"Voltage Traces — I = {cmp_state['current']}, "
                   f"T = {cmp_state['t_max']} ms",
             xaxis_title="Time (ms)",
             yaxis_title="Voltage (mV)",
             height=400,
             hovermode="x unified",
-            plot_bgcolor="#f9f9f9",
             legend=dict(
                 x=1, y=1, xanchor="right", yanchor="top",
                 bgcolor="rgba(255,255,255,0.75)",
                 bordercolor="lightgrey", borderwidth=1,
             ),
-            margin=dict(l=60, r=40, t=50, b=50),
         )
         st.plotly_chart(cmp_fig, use_container_width=True)
 
@@ -404,7 +401,7 @@ def render() -> None:
         )
 
     st.divider()
-    st.markdown("#### Model Equation")
+    section_header("Model Equation")
     st.markdown(
         r"""
         The membrane voltage evolves according to:
@@ -421,7 +418,7 @@ def render() -> None:
 
     # ── Izhikevich Preset Explorer ──────────────────────────────────────────
     st.divider()
-    st.markdown("#### Izhikevich Preset Explorer")
+    section_header("Izhikevich Preset Explorer")
     st.markdown(
         "Select a published parameter set from Izhikevich (2003) to simulate "
         "the corresponding cortical firing pattern."
@@ -480,13 +477,12 @@ def render() -> None:
         annotation_font_color="#ff7f0e",
     )
     izh_fig.update_layout(
+        **PLOTLY_LAYOUT,
         title=f"{izh_preset_name} — I = {izh_current}, T = {izh_t_max} ms",
         xaxis_title="Time (ms)",
         yaxis_title="Membrane Potential v (mV)",
         height=400,
         hovermode="x unified",
-        plot_bgcolor="#f9f9f9",
-        margin=dict(l=60, r=40, t=50, b=50),
     )
     st.plotly_chart(izh_fig, use_container_width=True)
 

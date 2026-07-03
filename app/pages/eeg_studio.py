@@ -15,6 +15,7 @@ from scipy.signal import spectrogram, welch
 
 from components.eeg_chart import render_eeg_chart
 from components.page_header import render_page_header
+from components.ui import PLOTLY_LAYOUT, section_header
 from neurosim.datasets import DatasetLoader
 
 _LABEL_NAMES = {0: "Left-hand imagery", 1: "Right-hand imagery"}
@@ -98,7 +99,7 @@ def render() -> None:
     render_eeg_chart(trial, num_channels, trial_idx, true_label)
 
     st.divider()
-    st.markdown("#### About this view")
+    section_header("About This View")
     st.markdown(
         "Each trace is one EEG channel offset vertically so multiple signals "
         "can be compared at a glance.  \n"
@@ -107,7 +108,7 @@ def render() -> None:
 
     # ── Power Spectral Density ───────────────────────────────────────────────
     st.divider()
-    st.markdown("#### Power Spectral Density")
+    section_header("Power Spectral Density")
     st.markdown(
         "The **Power Spectral Density (PSD)** shows how signal energy is "
         "distributed across frequencies for a single EEG channel. "
@@ -165,6 +166,7 @@ def render() -> None:
     ))
 
     psd_fig.update_layout(
+        **PLOTLY_LAYOUT,
         title=f"PSD — Trial {trial_idx}, Channel {psd_channel} "
               f"({label_name})",
         xaxis_title="Frequency (Hz)",
@@ -172,15 +174,13 @@ def render() -> None:
         xaxis=dict(range=[0, _MAX_HZ]),
         height=380,
         hovermode="x unified",
-        plot_bgcolor="#f9f9f9",
         showlegend=False,
-        margin=dict(l=60, r=40, t=50, b=50),
     )
     st.plotly_chart(psd_fig, use_container_width=True)
 
     # ── Spectrogram ──────────────────────────────────────────────────────────
     st.divider()
-    st.markdown("#### Spectrogram")
+    section_header("Spectrogram")
     st.markdown(
         "A **spectrogram** shows how the frequency content of a signal changes "
         "over time. Unlike the PSD (which averages across the whole trial), the "
@@ -222,20 +222,19 @@ def render() -> None:
     ))
 
     spec_fig.update_layout(
+        **PLOTLY_LAYOUT,
         title=f"Spectrogram — Trial {trial_idx}, Channel {spec_channel} "
               f"({label_name})",
         xaxis_title="Time (s)",
         yaxis_title="Frequency (Hz)",
         yaxis=dict(range=[0, _MAX_HZ]),
         height=380,
-        plot_bgcolor="#f9f9f9",
-        margin=dict(l=60, r=50, t=50, b=50),
     )
     st.plotly_chart(spec_fig, use_container_width=True)
 
     # ── Frequency Band Power ─────────────────────────────────────────────────
     st.divider()
-    st.markdown("#### Frequency Band Power")
+    section_header("Frequency Band Power")
     st.markdown(
         "Band power summarises the PSD into five physiologically meaningful "
         "ranges. Power in each band is computed by integrating the PSD "
@@ -280,13 +279,12 @@ def render() -> None:
         hovertemplate="%{x}<br>Power: %{y:.4e} μV²<extra></extra>",
     ))
     bp_fig.update_layout(
+        **PLOTLY_LAYOUT,
         title=f"Band Power — Trial {trial_idx}, Channel {bp_channel} ({label_name})",
         xaxis_title="Frequency Band",
         yaxis_title="Power (μV²)",
         height=360,
-        plot_bgcolor="#f9f9f9",
         showlegend=False,
-        margin=dict(l=60, r=40, t=50, b=50),
     )
     st.plotly_chart(bp_fig, use_container_width=True)
 

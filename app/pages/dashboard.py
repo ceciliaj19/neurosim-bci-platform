@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from components.page_header import render_page_header
+from components.ui import COLORS, PLOTLY_LAYOUT, section_header
 from neurosim.datasets import DatasetLoader
 
 # ---------------------------------------------------------------------------
@@ -92,9 +93,8 @@ def _training_curve_fig(history: dict) -> go.Figure:
         yaxis="y2",
     ))
     fig.update_layout(
+        **PLOTLY_LAYOUT,
         height=200,
-        margin=dict(l=36, r=36, t=10, b=30),
-        plot_bgcolor="#f9f9f9",
         legend=dict(orientation="h", y=-0.28, x=0.0, font=dict(size=11)),
         xaxis=dict(title="Epoch", tickfont=dict(size=10)),
         yaxis=dict(
@@ -129,8 +129,8 @@ def _confusion_matrix_fig(cm_data: list[list[int]]) -> go.Figure:
         hovertemplate="True: %{y}<br>Pred: %{x}<br>Count: %{z}<extra></extra>",
     ))
     fig.update_layout(
+        **PLOTLY_LAYOUT,
         height=220,
-        margin=dict(l=60, r=20, t=10, b=50),
         xaxis_title="Predicted",
         yaxis_title="True",
         xaxis=dict(tickfont=dict(size=10)),
@@ -145,7 +145,7 @@ def _confusion_matrix_fig(cm_data: list[list[int]]) -> go.Figure:
 
 def _section_neurosim() -> None:
     with st.container(border=True):
-        st.markdown("### 🧪 NeuroSim")
+        section_header("NeuroSim", icon="🧪")
         st.caption("Computational neuron simulation and analysis")
         st.markdown(
             "NeuroSim provides biophysically grounded single-neuron simulation "
@@ -177,7 +177,7 @@ def _section_neurosim() -> None:
 
 def _section_eeg(shape: tuple | None) -> None:
     with st.container(border=True):
-        st.markdown("### 📡 EEG Analysis")
+        section_header("EEG Analysis", icon="📡")
         st.caption("PhysioNet EEGMMI — 64-channel motor imagery EEG")
         st.markdown(
             "EEG Studio provides waveform inspection and spectral analysis "
@@ -217,7 +217,7 @@ def _section_eeg(shape: tuple | None) -> None:
 def _section_decoder(metrics: dict | None, cm_data: list | None,
                      history: dict | None) -> None:
     with st.container(border=True):
-        st.markdown("### 🤖 Decoder Performance")
+        section_header("Decoder Performance", icon="🤖")
         st.caption("EEGNet — convolutional neural network for motor imagery BCI")
         st.markdown(
             "EEGNet is a compact EEG-specific CNN trained on the PhysioNet "
@@ -271,7 +271,7 @@ def _section_decoder(metrics: dict | None, cm_data: list | None,
 
 def _section_closed_loop() -> None:
     with st.container(border=True):
-        st.markdown("### 🎮 Closed-Loop BCI Session")
+        section_header("Closed-Loop BCI Session", icon="🎮")
         st.caption("Motor imagery cue → mock decoder → virtual cursor")
         st.markdown(
             "The Closed-Loop BCI page runs a structured session: the participant "
@@ -323,12 +323,11 @@ def _section_closed_loop() -> None:
                 ],
             ))
             fig.update_layout(
+                **PLOTLY_LAYOUT,
                 height=160,
                 yaxis=dict(tickvals=[0, 1], ticktext=["✗", "✓"],
                            range=[-0.2, 1.4]),
                 xaxis_title=None,
-                margin=dict(l=30, r=10, t=8, b=30),
-                plot_bgcolor="#f9f9f9",
                 showlegend=False,
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -364,7 +363,7 @@ def render() -> None:
     shape = _load_dataset_shape()
 
     # -- Top KPI row -----------------------------------------------------------
-    st.markdown("#### Key Results")
+    section_header("Key Results")
     if metrics is not None:
         k1, k2, k3, k4, k5 = st.columns(5)
         k1.metric("Decoder Accuracy",  f"{metrics.get('accuracy', 0) * 100:.1f}%")

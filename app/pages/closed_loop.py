@@ -13,6 +13,7 @@ import streamlit as st
 
 from components.cursor_chart import render_cursor_chart
 from components.page_header import render_page_header
+from components.ui import section_header
 from neurosim.bci import CursorController
 
 # ---------------------------------------------------------------------------
@@ -190,7 +191,7 @@ def render() -> None:
             n_correct = sum(t["correct"] for t in history)
             total = len(history)
             acc = n_correct / total * 100 if total > 0 else 0.0
-            st.markdown("#### Session Complete")
+            section_header("Session Complete")
             st.success(
                 f"**{n_correct} / {total}** trials correct — "
                 f"session accuracy **{acc:.0f}%**",
@@ -247,7 +248,7 @@ def render() -> None:
 
     # -- Cursor trajectory -------------------------------------------------------
     with cursor_col:
-        st.markdown("#### Cursor Trajectory")
+        section_header("Cursor Trajectory")
         traj = st.session_state.get(_CL_TRAJ, [(0.0, 0.0)])
         render_cursor_chart(traj, title="", axis_range=12.0)
 
@@ -261,7 +262,7 @@ def render() -> None:
     # -- Trial history table -----------------------------------------------------
     if history:
         st.divider()
-        st.markdown("#### Trial History")
+        section_header("Trial History")
 
         n_correct = sum(t["correct"] for t in history)
         n_done = len(history)
