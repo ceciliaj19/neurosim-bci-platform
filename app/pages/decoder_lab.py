@@ -14,6 +14,7 @@ import streamlit as st
 
 from components.cursor_chart import render_cursor_chart
 from components.eeg_chart import render_eeg_chart
+from components.exporter import download_buttons
 from components.model_metrics import render_model_metrics
 from components.page_header import render_page_header
 from components.ui import COLORS, PLOTLY_LAYOUT, section_header
@@ -211,6 +212,24 @@ def render() -> None:
                     showlegend=False,
                 )
                 st.plotly_chart(prob_fig, use_container_width=True)
+                download_buttons(
+                    "Decoder Prediction",
+                    f"prediction_trial{trial_idx}",
+                    record={
+                        "trial_index": trial_idx,
+                        "true_label": true_label,
+                        "true_command": _CLASS_TO_COMMAND[true_label],
+                        "predicted_label": pred["class"],
+                        "predicted_command": _CLASS_TO_COMMAND[pred["class"]],
+                        "confidence": pred["confidence"],
+                        "correct": pred["correct"],
+                        "class_probabilities": {
+                            _CLASS_TO_COMMAND[i]: pred["probs"][i]
+                            for i in range(len(pred["probs"]))
+                        },
+                    },
+                    extra_meta={"model": "EEGNet", "n_classes": _N_CLASSES},
+                )
             else:
                 st.info(
                     "Select a trial and press **Run Inference** to decode it.",
@@ -317,6 +336,20 @@ def render() -> None:
             height=380,
         )
         st.plotly_chart(cm_fig, use_container_width=True)
+        download_buttons(
+            "Confusion Matrix",
+            "confusion_matrix",
+            record={
+                "labels": [f"Class {i} ({_CLASS_TO_COMMAND[i]})"
+                           for i in range(_N_CLASSES)],
+                "matrix": cm_data,
+                "metrics": {
+                    "TN": cm_data[0][0], "FP": cm_data[0][1],
+                    "FN": cm_data[1][0], "TP": cm_data[1][1],
+                },
+            },
+            extra_meta={"model": "EEGNet", "dataset": "PhysioNet EEGMMI"},
+        )
 
 
 render()

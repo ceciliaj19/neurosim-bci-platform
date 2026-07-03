@@ -6,9 +6,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from components.exporter import download_buttons
 from components.page_header import render_page_header
 from components.ui import COLORS, PLOTLY_LAYOUT, section_header
 from neurosim.analysis import compare_neuron_models, compute_fi_curve, parameter_sweep
@@ -151,6 +153,29 @@ def render() -> None:
                 icon="⚡",
             )
 
+    # Export LIF simulation trace
+    _lif_trace_df = pd.DataFrame({"time_ms": result.time, "voltage_mv": result.voltage})
+    download_buttons(
+        "LIF Simulation Trace",
+        "lif_trace",
+        df=_lif_trace_df,
+        record={
+            "spike_count": result.spike_count,
+            "firing_rate_hz": result.firing_rate,
+            "spike_times_ms": list(result.spike_times),
+            "parameters": {
+                "current": current,
+                "tau_m": tau_m,
+                "resistance": resistance,
+                "v_threshold": v_threshold,
+                "refractory_period": refractory_period,
+                "t_max": t_max,
+                "dt": dt,
+            },
+        },
+        extra_meta={"neuron_model": "LIF"},
+    )
+
     st.divider()
     section_header("F-I Curve Experiment")
     st.markdown(
@@ -206,6 +231,12 @@ def render() -> None:
                                     "spike_count": "{:.0f}"}),
                 use_container_width=True,
             )
+        download_buttons(
+            "F-I Curve",
+            "fi_curve",
+            df=fi_df,
+            extra_meta={"t_max_ms": t_max, "dt_ms": dt},
+        )
 
     st.divider()
     section_header("Parameter Sweep Experiment")
@@ -306,6 +337,13 @@ def render() -> None:
                 }),
                 use_container_width=True,
             )
+        download_buttons(
+            f"Parameter Sweep — {ps_param_name}",
+            f"param_sweep_{ps_param_name}",
+            df=ps_df,
+            extra_meta={"parameter": ps_param_name, "current": current,
+                        "t_max_ms": t_max, "dt_ms": dt},
+        )
 
     st.divider()
     section_header("Neuron Model Comparison")
@@ -399,6 +437,12 @@ def render() -> None:
             use_container_width=True,
             hide_index=True,
         )
+        download_buttons(
+            "Model Comparison",
+            "model_comparison",
+            df=cmp_summary,
+            extra_meta={"current": cmp_state["current"], "t_max_ms": cmp_state["t_max"]},
+        )
 
     st.divider()
     section_header("Model Equation")
@@ -491,6 +535,23 @@ def render() -> None:
     izh_out2.metric(
         "Firing Rate",
         f"{len(izh_result.spike_times) / (izh_t_max / 1000.0):.1f} Hz",
+    )
+
+    _izh_trace_df = pd.DataFrame(
+        {"time_ms": izh_result.time, "voltage_mv": izh_result.voltage}
+    )
+    download_buttons(
+        f"Izhikevich Trace — {izh_preset_name}",
+        f"izhikevich_{izh_preset_name.lower().replace(' ', '_')}",
+        df=_izh_trace_df,
+        record={
+            "spike_count": int(len(izh_result.spike_times)),
+            "firing_rate_hz": round(len(izh_result.spike_times) / (izh_t_max / 1000.0), 2),
+            "spike_times_ms": list(izh_result.spike_times),
+            "parameters": {"a": preset.a, "b": preset.b, "c": preset.c, "d": preset.d,
+                           "current": izh_current, "duration_ms": izh_t_max},
+        },
+        extra_meta={"neuron_model": "Izhikevich", "preset": izh_preset_name},
     )
 
 

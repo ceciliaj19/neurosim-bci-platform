@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from components.cursor_chart import render_cursor_chart
+from components.exporter import download_buttons
 from components.page_header import render_page_header
 from components.ui import section_header
 from neurosim.bci import CursorController
@@ -280,6 +281,28 @@ def render() -> None:
         df["correct"] = df["correct"].apply(lambda v: "✓" if v else "✗")
         df.columns = ["Trial", "Cue", "Prediction", "Confidence", "Result"]
         st.dataframe(df, use_container_width=True, hide_index=True)
+
+        # Export — use raw history (not the display-formatted df) for CSV
+        _export_df = pd.DataFrame(history)
+        download_buttons(
+            "Closed-Loop BCI Session",
+            "cl_session",
+            df=_export_df,
+            record={
+                "session_summary": {
+                    "total_trials": n_done,
+                    "correct": n_correct,
+                    "incorrect": n_done - n_correct,
+                    "accuracy_pct": round(acc, 1),
+                },
+                "trials": history,
+            },
+            extra_meta={
+                "decoder_accuracy_setting": st.session_state.get("cl_accuracy", "—"),
+                "n_trials_setting": st.session_state.get("cl_n_trials", "—"),
+                "seed": st.session_state.get("cl_seed", "—"),
+            },
+        )
 
 
 render()

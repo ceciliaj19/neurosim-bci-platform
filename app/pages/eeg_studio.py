@@ -14,6 +14,7 @@ import streamlit as st
 from scipy.signal import spectrogram, welch
 
 from components.eeg_chart import render_eeg_chart
+from components.exporter import download_buttons
 from components.page_header import render_page_header
 from components.ui import PLOTLY_LAYOUT, section_header
 from neurosim.datasets import DatasetLoader
@@ -177,6 +178,13 @@ def render() -> None:
         showlegend=False,
     )
     st.plotly_chart(psd_fig, use_container_width=True)
+    download_buttons(
+        "Power Spectral Density",
+        f"psd_trial{trial_idx}_ch{psd_channel}",
+        df=pd.DataFrame({"frequency_hz": freqs_plot, "power_uv2_per_hz": power_plot}),
+        extra_meta={"trial_index": trial_idx, "channel": psd_channel,
+                    "label": label_name, "fs_hz": _FS},
+    )
 
     # ── Spectrogram ──────────────────────────────────────────────────────────
     st.divider()
@@ -295,6 +303,14 @@ def render() -> None:
         "Description": band_descriptions,
     })
     st.dataframe(bp_df, use_container_width=True, hide_index=True)
+    download_buttons(
+        "Frequency Band Power",
+        f"band_power_trial{trial_idx}_ch{bp_channel}",
+        df=pd.DataFrame({"band": band_names, "freq_range_hz": band_ranges,
+                         "power_uv2": band_powers}),
+        extra_meta={"trial_index": trial_idx, "channel": bp_channel,
+                    "label": label_name, "fs_hz": _FS},
+    )
 
 
 render()
